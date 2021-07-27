@@ -578,23 +578,12 @@ readinessProbe:
 ```
 siege -v -c1 -t120S --content-type "application/json" aa3c167bec0054e6793d7dcfba21f874-1341135726.ap-northeast-1.elb.amazonaws.com:8080/pushes
 ```
+![무정지 재배포](https://user-images.githubusercontent.com/28692938/127084113-3e565141-ad9f-4d3d-912e-d06b36ee61b0.PNG)
 
-- 배포기간 동안 Availability 가 변화없기 때문에 무정지 재배포가 성공한 것으로 확인됨.
-```
-Lifting the server siege...
-Transactions:                   3029 hits
-Availability:                 100.00 %
-Elapsed time:                 239.62 secs
-Data transferred:               0.00 MB
-Response time:                  0.08 secs
-Transaction rate:              12.64 trans/sec
-Throughput:                     0.00 MB/sec
-Concurrency:                    1.00
-Successful transactions:        3029
-Failed transactions:               0
-Longest transaction:            0.45
-Shortest transaction:           0.06
-```
+
+- 배포기간 동안 Availability 100% 확인
+
+![무정지 재배포 결과](https://user-images.githubusercontent.com/28692938/127084140-5d725d29-2ebe-4bac-9472-0c5ebfabb7e1.PNG)
 
 
 
