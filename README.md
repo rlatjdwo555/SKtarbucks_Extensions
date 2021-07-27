@@ -4,23 +4,22 @@
 
 # Table of contents
 
-- [서비스 시나리오](#서비스-시나리오)
-- [분석/설계](#분석설계)
-  - [Event Storming](#Event-Storming)
-  - [헥사고날 아키텍처 다이어그램 도출](#헥사고날-아키텍처-다이어그램-도출)
-- [구현](#구현)
-  - [시나리오 테스트결과](#시나리오-테스트결과)
-  - [DDD의 적용](#DDD의-적용)
-  - [Gateway 적용](#Gateway-적용)
-  - [폴리글랏 퍼시스턴스](#폴리글랏-퍼시스턴스)
-  - [동기식 호출과 Fallback 처리](#동기식-호출과-Fallback-처리)
-  - [비동기식 호출과 Eventual Consistency](#비동기식-호출-/-시간적-디커플링-/-장애격리-/-최종-(Eventual)-일관성-테스트)
- - [운영](#운영)
-   - [CI/CD 설정](#CI/CD-설정)
-   - [동기식 호출 / 서킷 브레이킹 / 장애격리](#동기식호출-/-서킷브레이킹-/-장애격리)
-   - [오토스케일 아웃](#오토스케일-아웃)
-   - [무정지 재배포](#무정지-재배포)
-   - [ConfigMap 사용](#ConfigMap-사용)
+- 서비스 시나리오
+- 분석/설계
+  - Event Storming
+  - 헥사고날 아키텍처 다이어그램 도출
+- 구현
+  - 시나리오 테스트결과
+  - DDD의 적용
+  - Gateway 적용
+  - 폴리글랏 퍼시스턴스
+  - 동기식 호출과 Fallback 처리
+  - 비동기식 호출과 Eventual Consistency
+ - 운영
+   - CI/CD 설정
+   - Self-healing
+   - 무정지 재배포
+   - ConfigMap 사용
 
 # 서비스 시나리오 확장 
 
@@ -586,8 +585,6 @@ siege -v -c1 -t120S --content-type "application/json" aa3c167bec0054e6793d7dcfba
 ![무정지 재배포 결과](https://user-images.githubusercontent.com/28692938/127084140-5d725d29-2ebe-4bac-9472-0c5ebfabb7e1.PNG)
 
 
-
-
 ## ConfigMap 사용
 
 시스템별로 또는 운영중에 동적으로 변경 가능성이 있는 설정들을 ConfigMap을 사용하여 관리합니다.
@@ -640,3 +637,6 @@ kubectl describe pod productionmanage-5457b77f76-hl877 -n skcc-ns
 ```
 
 ![myconfig](https://user-images.githubusercontent.com/28692938/127079844-40cf9909-a5dd-4d65-8c76-091763e49e43.PNG)
+
+
+
