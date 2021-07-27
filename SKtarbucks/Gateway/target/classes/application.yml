@@ -1,0 +1,93 @@
+server:
+  port: 8080
+---
+
+spring:
+  profiles: default
+  cloud:
+    gateway:
+      routes:
+        - id: OrderManage
+          uri: http://localhost:8081
+          predicates:
+            - Path=/orders/**
+        - id: CafeManage
+          uri: http://localhost:8082
+          predicates:
+            - Path=/cafes/** 
+        - id: ProductionManage
+          uri: http://localhost:8083
+          predicates:
+            - Path=/productions/** 
+        - id: MyPage
+          uri: http://localhost:8084
+          predicates:
+            - Path= /myPages/**
+        - id: Payment
+          uri: http://localhost:8085
+          predicates:
+            - Path= /payments/**
+        - id: Delivery
+          uri: http://localhost:8086
+          predicates:
+            - Path= /deliveries/**
+        - id: PushManage
+          uri: http://localhost:8087
+          predicates:
+            - Path= /pushes/**           
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins:
+              - "*"
+            allowedMethods:
+              - "*"
+            allowedHeaders:
+              - "*"
+            allowCredentials: true
+
+
+---
+spring:
+  profiles: docker
+  cloud:
+    gateway:
+      routes:
+        - id: OrderManage
+          uri: http://OrderManage:8080
+          predicates:
+            - Path=/orders/**
+        - id: CafeManage
+          uri: http://CafeManage:8080
+          predicates:
+            - Path=/cafes/** 
+        - id: ProductionManage
+          uri: http://ProductionManage:8080
+          predicates:
+            - Path=/productions/**
+        - id: MyPage
+          uri: http://MyPage:8080
+          predicates:
+            - Path= /myPages/**
+        - id: Payment
+          uri: http://Payment:8085
+          predicates:
+            - Path= /payments/**
+        - id: DeliveryManage
+          uri: http://localhost:8086
+          predicates:
+            - Path= /deliveries/**
+        - id: PushManage
+          uri: http://localhost:8087
+          predicates:
+            - Path= /pushes/**   
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins:
+              - "*"
+            allowedMethods:
+              - "*"
+            allowedHeaders:
+              - "*"
+            allowCredentials: true

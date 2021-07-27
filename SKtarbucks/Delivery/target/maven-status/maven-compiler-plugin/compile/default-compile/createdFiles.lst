@@ -1,0 +1,4 @@
+local\AbstractEvent$1.class
+local\config\kafka\KafkaProcessor.class
+local\PolicyHandler.class
+local\AbstractEvent.class

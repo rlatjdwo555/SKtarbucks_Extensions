@@ -1,0 +1,17 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: dr-cafemanage
+  namespace: skcc04-ns
+spec:
+  host: cafemanage
+  trafficPolicy:
+    connectionPool:
+      http:
+        http1MaxPendingRequests: 1
+        maxRequestsPerConnection: 1
+    outlierDetection:
+      interval: 1s
+      consecutiveErrors: 2
+      baseEjectionTime: 10s
+      maxEjectionPercent: 100

@@ -1,0 +1,15 @@
+local\ProductionChanged.class
+local\ProductionSent.class
+local\AbstractEvent$1.class
+local\config\kafka\KafkaProcessor.class
+local\PaymentApproved.class
+local\ProductionController.class
+local\AbstractEvent.class
+local\external\OrderServiceFallback.class
+local\PolicyHandler.class
+local\Canceled.class
+local\ProductionRepository.class
+local\external\Order.class
+local\external\OrderService.class
+local\Production.class
+local\ProductionManageApplication.class
