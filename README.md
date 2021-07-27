@@ -1,6 +1,7 @@
 # SKtarbucks 기능 확장 (By 김성재) 
 
 - 1차 팀과제 (https://github.com/rlatjdwo555/SKtarbucks)
+- 3개의 서비스 추가 (결제, 배달, 푸쉬알람)
 
 # Table of contents
 
