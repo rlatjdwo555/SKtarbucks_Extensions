@@ -32,9 +32,8 @@
  
 3. 주문이 완료되면 제조 서비스에 데이터가 등록된다.
 4. 고객이 주문을 취소한다. <br>
- 4-1. 주문상태가 취소로 변경된다. <br>
- 4-2. 제조상태가 취소로 변경된다. <br>
- 4-3. 음료의 주문가능 수가 증가한다. <br>
+ 4-1. 음료의 주문가능 수가 증가한다. <br>
+ 4-2. 주문상태가 취소로 변경된다. <br>
  
 5. 관리자가 메뉴 정보를 삭제한다. <br>
  5-1. 고객의 해당 메뉴 주문상태가 취소로 변경된다. 
@@ -144,7 +143,7 @@ http localhost:8080/productions
 
 #### 4. 바리스타가 음료를 제조한다.
  - 제조가 시작되면 고객에게 푸쉬 알람을 보낸다.
- - 주문의 상태가 변경된다. <br>
+ - 주문의 상태가 변경된다.
  orderStatus = `MAKING`
  ```
  http localhost:8080/pushes
@@ -166,7 +165,7 @@ http localhost:8080/deliveries
 ![주문1-배달시작](https://user-images.githubusercontent.com/28692938/126986479-c86ae0d8-be65-4aa2-9a06-bc19fc08f795.PNG)
 
 - 주문타입이 '`TAKEOUT`'이면 고객에게 주문완료 푸쉬 알람을 보낸다.
-- 주문 상태가 **완료**로 변경된다. <br>
+- 주문 상태가 **완료**로 변경된다. 
 orderStatus = '`COMPLETED`'
 ```
 http localhost:8080/orders cafeId=2 custNm="YOON" count=3 orderType="TAKEOUT"
@@ -183,7 +182,7 @@ http localhost:8080/orders/2
 
 #### 6. 배달원이 배달을 시작한다.
 - 고객에게 배달 시작 푸쉬 알람을 보낸다.
-- 주문의 상태값이 **배달 중**으로 변경된다. <br>
+- 주문의 상태값이 **배달 중**으로 변경된다.
 orderStatus = "`DELIVERY_IN_PROGRESS`"
 ```
 http localhost:8080/pushes
@@ -195,7 +194,7 @@ http localhost:8080/orders/1
 
 #### 7. 배달을 완료한다.
 - 고객에게 배달 완료 푸쉬 알람을 보낸다.
-- 주문의 상태값이 **배달 완료**로 변경된다. <br>
+- 주문의 상태값이 **배달 완료**로 변경된다.
 orderStatus = '`DELIVERY_COMPLETED`'
 ```
 http PATCH localhost:8080/deliveries/1 status="COMPLETED"
@@ -343,6 +342,13 @@ pom.xml 에 적용
 		</dependency>
 ```
 
+- MyPage 조회 결과 
+```
+http localhost:8080/myPages
+```
+![myPage](https://user-images.githubusercontent.com/28692938/127083260-6709a4d4-3019-4816-b8e5-a013fbd3e509.PNG)
+
+
 
 ## 동기식 호출과 Fallback 처리
 제조 서비스에서 주문 타입을 확인할 때 제조(Production)->주문(Order) 간의 호출은 동기식 일관성을 유지하는 트랜잭션으로 처리
@@ -411,3 +417,237 @@ mvn spring-boot:run
 #제조 완료 요청 처리 
 http PATCH aa3c167bec0054e6793d7dcfba21f874-1341135726.ap-northeast-1.elb.amazonaws.com:8080/deliveries/1 status="COMPLETED" #Success   
 ```
+
+## 비동기식 호출 / 시간적 디커플링 / 장애격리 / 최종 (Eventual) 일관성 테스트
+
+푸쉬 알람 서비스는 비동기식으로 구현하였고 푸쉬 서비스가 내려가 있더라도 다른 서비스에는 영향을 주지 않는다.
+
+- Push 서비스가 내려간 상태에서 주문 및 제조 완료 후, 서비스 재기동시 이벤트 수신을 확인한다.
+```
+# 푸쉬 서비스 다운 
+kubectl delete deploy,svc pushmanage -n skcc-ns
+
+# 주문처리
+http aa3c167bec0054e6793d7dcfba21f874-1341135726.ap-northeast-1.elb.amazonaws.com:8080/orders cafeId=5 custNm="CHOI" count=2 orderType="TAKEOUT"
+
+# 결제 승인 및 제조완료 처리
+http PATCH aa3c167bec0054e6793d7dcfba21f874-1341135726.ap-northeast-1.elb.amazonaws.com:8080/payments/6 paymentStatus="APPROVED"
+http PATCH aa3c167bec0054e6793d7dcfba21f874-1341135726.ap-northeast-1.elb.amazonaws.com:8080/productions/5 status="COMPLETED"
+
+# 푸쉬 서비스 재기동 후 Event 수신 확인
+kubectl create deployment pushmanage --image=879772956301.dkr.ecr.ap-northeast-1.amazonaws.com/user07-pushmanage:latest -n skcc-ns
+kubectl expose deploy pushmanage --port=8080 -n skcc-ns
+```
+
+![푸쉬서비스 다운](https://user-images.githubusercontent.com/28692938/127078238-bb066518-0688-45d2-862e-50d0303d70ba.PNG)
+![주문6](https://user-images.githubusercontent.com/28692938/127078241-edfca451-7444-42da-be9e-9eb9429ee2f4.PNG)
+
+![푸쉬 서비스 올리고 결과확인](https://user-images.githubusercontent.com/28692938/127078243-4d5c14be-44b7-44c2-a167-a3ca624cef5b.PNG)
+
+
+- 음료 제조상태 변경 이벤트를 카프카로 송출한다(Publish)
+ 
+```java
+...
+    @PostPersist
+    public void onPostPersist(){
+        ProductionChanged productionChanged = new ProductionChanged();
+        BeanUtils.copyProperties(this, productionChanged);
+        productionChanged.publishAfterCommit();
+    }
+
+    @PostUpdate
+    public void onPostUpdate(){
+        if("COMPLETED".equals(status)){
+
+           // 주문 타입 확인을 동기식으로 호출
+           local.external.Order order = new local.external.Order();
+           order = ProductionManageApplication.applicationContext.getBean(local.external.OrderService.class)
+           .getOrderType(orderId);
+           
+           switch (order.getOrderType()) {
+               case "TAKEOUT":
+                ProductionChanged productionChanged = new ProductionChanged();
+                BeanUtils.copyProperties(this, productionChanged);
+                productionChanged.publishAfterCommit();                            
+                break;
+
+               case "DELIVERY":
+                ProductionSent productionSent = new ProductionSent();
+                BeanUtils.copyProperties(this, productionSent);
+                productionSent.publishAfterCommit();    
+                break;
+           
+               default :
+               
+           }
+        }
+    }
+...
+```
+- Push 서비스에서는 제조상태 변경 이벤트를 수신하도록 PolicyHandler 구현
+
+```java
+@StreamListener(KafkaProcessor.INPUT)
+    public void wheneverProductionChanged_Push(@Payload ProductionChanged productionChanged){
+
+        if(!productionChanged.isMe()) return;
+        
+        System.out.println("##### listener ProductionChanged: " + productionChanged.toJson());
+            
+        Push push = new Push();
+        push.setOrderId(productionChanged.getOrderId());
+
+        switch (productionChanged.getStatus()){
+            case "MAKING":
+             push.setMsg("주문하신 음료를 만들고 있습니다.");
+             break;
+
+            case "COMPLETED":
+             push.setMsg("주문하신 음료가 준비되었습니다.");
+             break;
+            
+            default :
+        }
+
+        pushRepository.save(push);
+    }
+ ```
+
+# 운영
+
+## CI/CD 설정
+
+각 구현체들은 각자의 source repository 에 구성되었고, 사용한 CI/CD 플랫폼은 AWS CodeBuild를 사용하였으며, 
+pipeline build script 는 각 프로젝트 폴더 이하에 buildspec.yml 에 포함되었다.
+- CodeBuild 기반으로 CI/CD 파이프라인 구성
+MSA 서비스별 CodeBuild 프로젝트 생성하여  CI/CD 파이프라인 구성
+
+![ECR](https://user-images.githubusercontent.com/28692938/127078902-76d3b1aa-8f2a-44f5-a6de-039fd9d6daf8.PNG)
+
+![CodeBuild](https://user-images.githubusercontent.com/28692938/127078901-7b88c5ee-83c1-4954-8a34-797c01ffe346.PNG)
+
+
+- Git Hook 연결
+연결한 Github의 소스 변경 발생 시 자동으로 빌드 및 배포 되도록 Git Hook 연결 설정
+
+![GitHook](https://user-images.githubusercontent.com/28692938/127078904-7a150bc9-4ed5-450b-a545-02d0beb778ef.PNG)
+
+![livenessProve](https://user-images.githubusercontent.com/28692938/127082340-93a2d604-b85c-4cd6-bb15-88caf5bd7c95.PNG)
+
+## Self-healing (Liveness Probe)
+Pod는 정상적으로 작동하지만 내부의 어플리케이션이 반응이 없다면, 컨테이너는 의미가 없다.
+위와 같은 경우는 어플리케이션의 Liveness probe는 Pod의 상태를 체크하다가, Pod의 상태가 비정상인 경우 kubelet을 통해서 재시작한다.
+
+- 임의대로 Liveness probe에서 path를 잘못된 값으로 변경 후, retry 시도 확인
+```
+# Liveness probe 설정
+
+livenessProbe:
+    httpGet:
+        path: '/actuator/healthhhhhh'
+        port: 8080
+    initialDelaySeconds: 120
+    timeoutSeconds: 2
+    periodSeconds: 5
+    failureThreshold: 5  
+```
+
+- pushmanage Pod가 여러번 RESTART 한 것을 확인
+
+![livenessProve](https://user-images.githubusercontent.com/28692938/127082552-0043a57b-73c0-46cf-bbe8-7af080e1e46a.PNG)
+
+
+## 무정지 재배포 (ReadinessProve)
+
+- buildspec.yaml에 ReadinessProbe 설정 
+```
+# Readiness probe 설정
+
+readinessProbe:
+    httpGet:
+      path: '/actuator/health'
+      port: 8080
+    initialDelaySeconds: 30
+    timeoutSeconds: 2
+    periodSeconds: 5
+    failureThreshold: 10
+```
+
+- CI/CD 파이프라인을 통해 새버전으로 재배포 작업 간 siege 모니터링 
+```
+siege -v -c1 -t120S --content-type "application/json" aa3c167bec0054e6793d7dcfba21f874-1341135726.ap-northeast-1.elb.amazonaws.com:8080/pushes
+```
+
+- 배포기간 동안 Availability 가 변화없기 때문에 무정지 재배포가 성공한 것으로 확인됨.
+```
+Lifting the server siege...
+Transactions:                   3029 hits
+Availability:                 100.00 %
+Elapsed time:                 239.62 secs
+Data transferred:               0.00 MB
+Response time:                  0.08 secs
+Transaction rate:              12.64 trans/sec
+Throughput:                     0.00 MB/sec
+Concurrency:                    1.00
+Successful transactions:        3029
+Failed transactions:               0
+Longest transaction:            0.45
+Shortest transaction:           0.06
+```
+
+
+
+
+## ConfigMap 사용
+
+시스템별로 또는 운영중에 동적으로 변경 가능성이 있는 설정들을 ConfigMap을 사용하여 관리합니다.
+Application에서 특정 도메일 URL을 ConfigMap 으로 설정하여 운영/개발등 목적에 맞게 변경가능합니다.  
+
+
+
+* Production/buildsepc.yaml 내 ConfigMap 정의
+```
+...
+      - |
+        cat <<EOF | kubectl apply -f -
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: my-config2
+          namespace: $_NAMESPACE
+        data:
+          api.order.url: http://OrderManage:8080
+        EOF
+      - |
+            ...
+                  env:
+                    - name: api.order.url
+                      valueFrom:
+                        configMapKeyRef:
+                          name: my-config2
+                          key: api.order.url 
+...
+```
+
+
+* url에 configMap 적용
+```java
+# OrderService.java
+
+@FeignClient(name="OrderManage", url="${api.order.url}")
+public interface OrderService {
+
+    @RequestMapping(method= RequestMethod.GET, value="/orders/{orderId}", consumes = "application/json")
+    public Order getOrderType(@PathVariable("orderId") Long orderId);
+
+}
+```
+
+
+* kubectl describe 명령어로 configMap 적용여부 확인 
+```
+kubectl describe pod productionmanage-5457b77f76-hl877 -n skcc-ns
+```
+
+![myconfig](https://user-images.githubusercontent.com/28692938/127079844-40cf9909-a5dd-4d65-8c76-091763e49e43.PNG)
